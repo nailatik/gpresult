@@ -1,6 +1,5 @@
 import datetime
 import gettext
-import pwd
 from pathlib import Path
 
 import distro
@@ -8,8 +7,6 @@ import distro
 gettext.bindtextdomain("gpresult", None)
 gettext.textdomain("gpresult")
 _ = gettext.gettext
-
-PATH_DB = "/etc/dconf/db/policy"
 
 
 def get_timestamp():
@@ -31,19 +28,3 @@ def get_user_home_dir():
     home_dir = str(Path.home())
 
     return [_("Local Profile:"), home_dir]
-
-
-def get_uid_from_name(name):
-    try:
-        pw = pwd.getpwnam(name)
-    except KeyError:
-        exit()
-
-    return pw.pw_uid
-
-
-def get_path_to_policy(uid=None):
-    if uid:
-        return PATH_DB + str(uid)
-
-    return PATH_DB
