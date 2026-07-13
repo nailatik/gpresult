@@ -4,7 +4,7 @@ from textwrap import fill
 
 from prettytable import PrettyTable
 
-from . import gpr_system
+from . import gpr_info, gpr_system
 
 gettext.bindtextdomain("gpresult", None)
 gettext.textdomain("gpresult")
@@ -145,34 +145,34 @@ def policies_gen(gpos, type, is_cmd, previous, with_lifecycle=False):
             kvs = []
 
             for gpo in gpos:
-                kvs.extend(gpo.keys_values)
+                kvs.extend(gpo.get_keys() or [])
 
-            kvs.sort(key=lambda x: x.key)
+            kvs.sort(key=lambda kv: kv.get_key())
 
             if previous:
                 if type != "raw":
                     for kv in kvs:
                         body.append(
                             [
-                                kv.key,
-                                kv.value,
-                                kv.mod_previous_value,
+                                kv.get_key(),
+                                kv.get_value(),
+                                kv.get_previous_value(),
                             ]
                         )
                 else:
                     for kv in kvs:
                         body.append(
                             [
-                                kv.key,
-                                kv.mod_previous_value,
+                                kv.get_key(),
+                                kv.get_previous_value(),
                             ]
                         )
             else:
                 for kv in kvs:
                     body.append(
                         [
-                            kv.key,
-                            kv.value,
+                            kv.get_key(),
+                            kv.get_value(),
                         ]
                     )
 
@@ -185,16 +185,15 @@ def policies_gen(gpos, type, is_cmd, previous, with_lifecycle=False):
         render_type = "format" if type == "list" else "raw"
         policy_guid = []
 
+        seen = set()
         for gpo in gpos:
-            fl = True
-            for elem in policy_guid:
-                if gpo == elem[2]:
-                    fl = False
-                    break
-            if fl:
-                policy_guid.append([gpo.name, gpo.guid, gpo])
-
-        policy_guid = [row[:2] for row in policy_guid]
+            guid = gpo.get_guid()
+            name = gpo.get_name()
+            key = (guid, name)
+            if key in seen:
+                continue
+            seen.add(key)
+            policy_guid.append([name, guid])
 
         return {
             "body": policy_guid,
@@ -203,15 +202,15 @@ def policies_gen(gpos, type, is_cmd, previous, with_lifecycle=False):
 
     if type == "verbose":
         for gpo in gpos:
-            info = gpo.get_info_list(
-                with_previous=previous, with_lifecycle=with_lifecycle
+            info = gpr_info.gpo_info_list(
+                gpo, with_previous=previous, with_lifecycle=with_lifecycle
             )
             body.append({"body": info, "type": "format"})
 
     elif type == "common":
         names_gpos = []
         for gpo in gpos:
-            names_gpos.append(gpo.name)
+            names_gpos.append(gpo.get_name())
 
         body.append(
             {
@@ -245,7 +244,7 @@ def settings_gen(
     if obj_type:
         filtering_gpo = []
         for gpo in gpos:
-            if obj_type == gpo.obj:
+            if obj_type == gpo.scope:
                 filtering_gpo.append(gpo)
 
     policies = policies_gen(

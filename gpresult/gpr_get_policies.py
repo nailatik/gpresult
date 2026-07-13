@@ -15,16 +15,22 @@ def _check(lib, status, exit_code):
         sys.exit(1)
 
 
+def _tag_scope(gpos, scope):
+    for gpo in gpos:
+        gpo.scope = scope
+    return gpos
+
+
 def _get_user_gpos(lib):
     status, gpos, exit_code = lib.gpresult_get_user_gpos(GPRESULT1_PATH, TIMEOUT)
     _check(lib, status, exit_code)
-    return gpos or []
+    return _tag_scope(gpos or [], "user")
 
 
 def _get_machine_gpos(lib):
     status, gpos, exit_code = lib.gpresult_get_machine_gpos(GPRESULT1_PATH, TIMEOUT)
     _check(lib, status, exit_code)
-    return gpos or []
+    return _tag_scope(gpos or [], "machine")
 
 
 def _get_all_gpos(lib):
@@ -32,7 +38,7 @@ def _get_all_gpos(lib):
         GPRESULT1_PATH, TIMEOUT
     )
     _check(lib, status, exit_code)
-    return (user_gpos or []) + (machine_gpos or [])
+    return _tag_scope(user_gpos or [], "user") + _tag_scope(machine_gpos or [], "machine")
 
 
 def _get_gpo_by(lib, cmd, cmd_arg):
