@@ -13,6 +13,8 @@ BuildArch: noarch
 BuildRequires: rpm-build-python3
 BuildRequires: python3(wheel), python3(hatchling), python3(prettytable)
 
+Requires: libalterator-glib0 >= 0.1.7
+
 Source0: %name-%version.tar
 
 %description
