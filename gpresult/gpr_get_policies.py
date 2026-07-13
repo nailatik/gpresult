@@ -1,33 +1,71 @@
-import os
+import sys
 
-from . import gpr_init, gpr_system
-from .GPO import GPO
+from gi.repository import Alterator
+
+GPRESULT1_PATH = "/org/altlinux/alterator/gpresult"
+TIMEOUT = -1
+
+
+def _check(lib, status, exit_code):
+    if status != 0:
+        print(lib.get_last_error(), file=sys.stderr)
+        sys.exit(1)
+    if exit_code != 0:
+        print(f"Backend exited with code {exit_code}", file=sys.stderr)
+        sys.exit(1)
+
+
+def _get_user_gpos(lib):
+    status, gpos, exit_code = lib.gpresult_get_user_gpos(GPRESULT1_PATH, TIMEOUT)
+    _check(lib, status, exit_code)
+    return gpos or []
+
+
+def _get_machine_gpos(lib):
+    status, gpos, exit_code = lib.gpresult_get_machine_gpos(GPRESULT1_PATH, TIMEOUT)
+    _check(lib, status, exit_code)
+    return gpos or []
+
+
+def _get_all_gpos(lib):
+    status, user_gpos, machine_gpos, exit_code = lib.gpresult_get_all_gpos(
+        GPRESULT1_PATH, TIMEOUT
+    )
+    _check(lib, status, exit_code)
+    return (user_gpos or []) + (machine_gpos or [])
+
+
+def _get_gpo_by(lib, cmd, cmd_arg):
+    if cmd == "guid":
+        status, gpo, exit_code = lib.gpresult_get_gpo_by_guid(
+            GPRESULT1_PATH, TIMEOUT, cmd_arg
+        )
+    else:
+        status, gpo, exit_code = lib.gpresult_get_gpo_by_name(
+            GPRESULT1_PATH, TIMEOUT, cmd_arg
+        )
+    _check(lib, status, exit_code)
+    return [gpo] if gpo is not None else []
+
+
+def _filter_by(gpos, cmd, cmd_arg):
+    if cmd == "guid":
+        return [gpo for gpo in gpos if gpo.get_guid() == cmd_arg]
+    return [gpo for gpo in gpos if gpo.get_name() == cmd_arg]
 
 
 def get_policies(obj=None, cmd=None, cmd_arg=None):
-    uid = None
-    name = os.getlogin()
-    gpos = None
+    lib = Alterator.Glib()
 
-    if obj:
+    if cmd in ("guid", "name"):
         if obj == "user":
-            uid = gpr_system.get_uid_from_name(name)
-        path = gpr_system.get_path_to_policy(uid)
-        gpr_init.init_data(path, obj)
+            return _filter_by(_get_user_gpos(lib), cmd, cmd_arg)
+        if obj == "machine":
+            return _filter_by(_get_machine_gpos(lib), cmd, cmd_arg)
+        return _get_gpo_by(lib, cmd, cmd_arg)
 
-    else:
-        path = gpr_system.get_path_to_policy(uid)
-        gpr_init.init_data(path, "machine")
-
-        uid = gpr_system.get_uid_from_name(name)
-        path = gpr_system.get_path_to_policy(uid)
-        gpr_init.init_data(path, "user")
-
-    if cmd == "guid":
-        gpos = GPO.get_gpos_by_guid(cmd_arg, obj)
-    elif cmd == "name":
-        gpos = GPO.get_gpos_by_name(cmd_arg, obj)
-    else:
-        gpos = GPO.get_all_gpos(obj)
-
-    return gpos
+    if obj == "user":
+        return _get_user_gpos(lib)
+    if obj == "machine":
+        return _get_machine_gpos(lib)
+    return _get_all_gpos(lib)
