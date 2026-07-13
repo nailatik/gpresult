@@ -4,7 +4,9 @@ import os
 import socket
 from pathlib import Path
 
-from . import gpr_system
+from gi.repository import Alterator
+
+from . import gpr_info, gpr_system
 
 gettext.bindtextdomain("gpresult", None)
 gettext.textdomain("gpresult")
@@ -21,23 +23,23 @@ CSS = _read_asset("gpr_html.css")
 JS = _read_asset("gpr_html.js")
 
 PREF_GROUP_TITLES = {
-    "Files": "Files",
-    "Folders": "Folders",
-    "Inifiles": "Ini Files",
-    "Drives": "Drive Maps",
-    "Environmentvariables": "Environment",
-    "Networkshares": "Network Shares",
-    "Shortcuts": "Shortcuts",
+    Alterator.GpoPreferenceType.FILES: "Files",
+    Alterator.GpoPreferenceType.FOLDERS: "Folders",
+    Alterator.GpoPreferenceType.INIFILES: "Ini Files",
+    Alterator.GpoPreferenceType.DRIVES: "Drive Maps",
+    Alterator.GpoPreferenceType.ENVIRONMENTVARIABLES: "Environment",
+    Alterator.GpoPreferenceType.NETWORKSHARES: "Network Shares",
+    Alterator.GpoPreferenceType.SHORTCUTS: "Shortcuts",
 }
 
 PREF_GROUP_ORDER = [
-    "Files",
-    "Folders",
-    "Inifiles",
-    "Drives",
-    "Environmentvariables",
-    "Networkshares",
-    "Shortcuts",
+    Alterator.GpoPreferenceType.FILES,
+    Alterator.GpoPreferenceType.FOLDERS,
+    Alterator.GpoPreferenceType.INIFILES,
+    Alterator.GpoPreferenceType.DRIVES,
+    Alterator.GpoPreferenceType.ENVIRONMENTVARIABLES,
+    Alterator.GpoPreferenceType.NETWORKSHARES,
+    Alterator.GpoPreferenceType.SHORTCUTS,
 ]
 
 
@@ -105,7 +107,7 @@ def info_table(rows, css_class="info"):
 
 def extract_domain(gpos):
     for gpo in gpos:
-        path = gpo.path or ""
+        path = gpo.get_path() or ""
         marker = "gpo_cache/"
         idx = path.find(marker)
         if idx != -1:
@@ -162,84 +164,87 @@ def keys_values_table(kvs, previous=False):
             )
         )
 
-    for kv in sorted(kvs, key=lambda x: x.key):
+    for kv, gpo_name in sorted(kvs, key=lambda pair: pair[0].get_key()):
         if previous:
             out.append(
                 "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
-                    esc(kv.key),
-                    esc(fmt(kv.value)),
-                    esc(fmt(kv.mod_previous_value)),
-                    esc(kv.policy_name or "-"),
+                    esc(kv.get_key()),
+                    esc(fmt(kv.get_value())),
+                    esc(fmt(kv.get_previous_value())),
+                    esc(gpo_name or "-"),
                 )
             )
         else:
             out.append(
                 "<tr><td>{}</td><td>{}</td><td>{}</td></tr>".format(
-                    esc(kv.key), esc(fmt(kv.value)), esc(kv.policy_name or "-")
+                    esc(kv.get_key()), esc(fmt(kv.get_value())), esc(gpo_name or "-")
                 )
             )
     out.append("</table>")
     return "".join(out)
 
 
-def pref_titles(ptype, po):
-    if ptype == "Files":
-        target = po.targetPath or po.source or po.fromPath or ""
+def pref_titles(pref):
+    category = pref.get_category()
+    if category == Alterator.GpoPreferenceType.FILES:
+        target = pref.target_path or pref.source or pref.from_path or ""
         return (
             _("File") + " (" + _("Target Path") + ": " + str(target) + ")",
             Path(str(target)).name or str(target),
         )
-    if ptype == "Folders":
-        path = po.path or ""
+    if category == Alterator.GpoPreferenceType.FOLDERS:
+        path = pref.path or ""
         return (
             _("Folder") + " (" + _("Path") + ": " + str(path) + ")",
             Path(str(path)).name or str(path),
         )
-    if ptype == "Inifiles":
+    if category == Alterator.GpoPreferenceType.INIFILES:
         return (
             _("Ini File")
             + " ("
             + _("File Path")
             + ": "
-            + str(po.path or "")
+            + str(pref.path or "")
             + ", "
             + _("Section Name")
             + ": "
-            + str(po.section or "")
+            + str(pref.section or "")
             + ", "
             + _("Property Name")
             + ": "
-            + str(po.property or "")
+            + str(pref.property or "")
             + ")",
-            str(po.property or po.path or ""),
+            str(pref.property or pref.path or ""),
         )
-    if ptype == "Drives":
-        path = po.path or ""
-        return (_("Drive Map") + " (" + str(path) + ")", str(po.label or path))
-    if ptype == "Environmentvariables":
-        return (_("Environment") + " (" + str(po.name or "") + ")", str(po.name or ""))
-    if ptype == "Networkshares":
+    if category == Alterator.GpoPreferenceType.DRIVES:
+        path = pref.path or ""
+        return (_("Drive Map") + " (" + str(path) + ")", str(pref.label or path))
+    if category == Alterator.GpoPreferenceType.ENVIRONMENTVARIABLES:
         return (
-            _("Network Share") + " (" + str(po.name or "") + ")",
-            str(po.name or ""),
+            _("Environment") + " (" + str(pref.name or "") + ")",
+            str(pref.name or ""),
         )
-    if ptype == "Shortcuts":
-        return (_("Shortcut") + " (" + str(po.name or "") + ")", str(po.name or ""))
+    if category == Alterator.GpoPreferenceType.NETWORKSHARES:
+        return (
+            _("Network Share") + " (" + str(pref.name or "") + ")",
+            str(pref.name or ""),
+        )
+    if category == Alterator.GpoPreferenceType.SHORTCUTS:
+        return (_("Shortcut") + " (" + str(pref.name or "") + ")", str(pref.name or ""))
 
-    return (str(ptype), str(ptype))
+    return (str(category), str(category))
 
 
 def preference_item(pref):
-    po = pref.preference_obj
-    item_title, instance = pref_titles(pref.type, po)
+    item_title, instance = pref_titles(pref)
 
-    rows = list(po.get_info_list())
-    lifecycle = pref.get_lifecycle_info_list()
+    rows = list(gpr_info.preference_info_list(pref)[0])
+    lifecycle = gpr_info.preference_lifecycle_info_list(pref)
     if lifecycle:
         rows.extend(lifecycle)
 
     winning = '<div class="he4i">{}</div>'.format(
-        info_table([[_("Winning GPO"), pref.policy_name]])
+        info_table([[_("Winning GPO"), pref.get_policy_name()]])
     )
     general = section(
         4,
@@ -268,8 +273,8 @@ def preference_item(pref):
 def preferences_section(gpos):
     grouped = {}
     for gpo in gpos:
-        for pref in gpo.preferences:
-            grouped.setdefault(pref.type, []).append(pref)
+        for pref in gpo.get_preferences() or []:
+            grouped.setdefault(pref.get_category(), []).append(pref)
 
     if not grouped:
         return None
@@ -294,7 +299,9 @@ def preferences_section(gpos):
 def settings_section(obj_type, gpos, previous=False):
     kvs = []
     for gpo in gpos:
-        kvs.extend(gpo.keys_values)
+        gpo_name = gpo.get_name()
+        for kv in gpo.get_keys() or []:
+            kvs.append((kv, gpo_name))
 
     blocks = []
 
@@ -321,16 +328,18 @@ def gpo_objects_section(gpos):
     items = []
 
     for gpo in gpos:
-        marker = (gpo.name, gpo.guid)
+        name = gpo.get_name()
+        guid = gpo.get_guid()
+        marker = (name, guid)
         if marker in seen:
             continue
         seen.add(marker)
 
-        title = "{} [{}]".format(gpo.name, gpo.guid or "Local")
+        title = "{} [{}]".format(name, guid or "Local")
         rows = [
-            [_("Link Location"), gpo.path],
-            [_("Revision"), gpo.version],
-            ["GUID", gpo.guid],
+            [_("Link Location"), gpo.get_path()],
+            [_("Revision"), gpo.get_version()],
+            ["GUID", guid],
         ]
         body = f'<div class="he4i">{info_table(rows)}</div>'
         items.append(section(2, title, body))
@@ -345,7 +354,7 @@ def gpo_objects_section(gpos):
 
 
 def details_section(obj_type, gpos, previous=False):
-    gpos_t = [g for g in gpos if g.obj == obj_type]
+    gpos_t = [g for g in gpos if g.scope == obj_type]
     if not gpos_t:
         return None
 
