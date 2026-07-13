@@ -1,11 +1,4 @@
 %define _unpackaged_files_terminate_build 1
-%add_python3_req_skip gpresult.Preferences.Preferences.Drive
-%add_python3_req_skip gpresult.Preferences.Preferences.EnvVar
-%add_python3_req_skip gpresult.Preferences.Preferences.File
-%add_python3_req_skip gpresult.Preferences.Preferences.Folder
-%add_python3_req_skip gpresult.Preferences.Preferences.Inifile
-%add_python3_req_skip gpresult.Preferences.Preferences.Networkshare
-%add_python3_req_skip gpresult.Preferences.Preferences.Shortcut
 
 Name: gpresult
 Version: 0.1.0
@@ -19,7 +12,6 @@ BuildArch: noarch
 
 BuildRequires: rpm-build-python3
 BuildRequires: python3(wheel), python3(hatchling), python3(prettytable)
-Requires: gpupdate >= 0.11.0
 
 Source0: %name-%version.tar
 
